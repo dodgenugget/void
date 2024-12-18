@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mines Game with Wallet and Slot Machine</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            text-align: center;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+        }
+        h1 {
+            color: #79c0ff;
+        }
+        #grid {
+            display: grid;
+            gap: 5px;
+            margin: 20px auto;
+        }
+        .cell {
+            background-color: #161b22;
+            color: #f0f6fc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 24px;
+            border: 1px solid #30363d;
+            transition: background-color 0.3s;
+        }
+        .cell:hover {
+            background-color: #21262d;
+        }
+        .mine {
+            background-color: #ff7b72;
+        }
+        .revealed {
+            pointer-events: none;
+            opacity: 0.6;
+        }
+        .result {
+            margin-top: 20px;
+            font-size: 24px;
+        }
+        #betContainer, #adminPanel, #slotContainer {
+            margin: 20px 0;
+        }
+        input, select {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            margin-right: 10px;
+            width: 100px;
+        }
+        button {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #79c0ff;
+            color: #0d1117;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #57a9e1;
+        }
+        #adminPanel {
+            display: none;
+            margin-top: 20px;
+        }
+        #loginContainer, #optionsContainer, #createAccountContainer {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+        }
+        #gameContainer {
+            display: none;
+        }
+        .slot {
+            width: 50px;
+            height: 50px;
+            background-color: #161b22;
+            color: #f0f6fc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 5px;
+            font-size: 24px;
+            border-radius: 5px;
+        }
+        #slotMachine {
+            display: flex;
+            justify-content: center;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loginContainer">
+        <h2>Login</h2>
+        <input type="text" id="username" placeholder="Username" />
+        <input type="password" id="password" placeholder="Password" />
+        <button id="loginButton">Login</button>
+        <button id="switchToCreateAccount">Create Account</button>
+    </div>
+
+    <div id="createAccountContainer" style="display:none;">
+        <h2>Create Account</h2>
+        <input type="text" id="newUsername" placeholder="Username" />
+        <input type="password" id="newPassword" placeholder="Password" />
+        <input type="password" id="confirmPassword" placeholder="Confirm Password" />
+        <button id="createAccount">Create Account</button>
+        <button id="switchToLogin">Back to Login</button>
+    </div>
+
+    <div id="gameContainer">
+        <h1>Mines Game</h1>
+        <div id="wallet">
+            <h3>Wallet Balance: $<span id="walletBalance">100</span></h3>
+            <input type="number" id="addFunds" placeholder="Add Funds" min="1" />
+            <button id="addFundsButton">Add Funds</button>
+        </div>
+        <div id="betContainer">
+            <input type="number" id="gridSize" placeholder="Grid Size (3 to 10)" min="3" max="10" />
+            <input type="number" id="betAmount" placeholder="Bet Amount ($)" min="1" />
+            <button id="startGame">Start Game</button>
+        </div>
+        <div id="grid"></div>
+        <button id="reset">Reset Game</button>
+        <div class="result" id="result"></div>
+
+        <div id="slotContainer">
+            <h2>Slot Machine</h2>
+            <div id="slotMachine">
+                <div class="slot" id="slot1">🍒</div>
+                <div class="slot" id="slot2">🍒</div>
+                <div class="slot" id="slot3">🍒</div>
+            </div>
+            <button id="spinButton">Spin!</button>
+            <div class="result" id="slotResult"></div>
+        </div>
+
+        <div id="adminPanel">
+            <h2>Admin Panel</h2>
+            <input type="number" id="odds" placeholder="Odds Multiplier" />
+            <input type="number" id="maxBet" placeholder="Max Bet" />
+            <button id="updateSettings">Update Settings</button>
+        </div>
+    </div>
+
+    <div id="optionsContainer" style="display:none;">
+        <h2>Options</h2>
+        <button id="playMines">Play Mines</button>
+        <button id="playSlots">Play Slots</button>
+        <button id="logoutButton">Logout</button>
+    </div>
+
+    <script>
+        const gridElement = document.getElementById('grid');
+        const resultElement = document.getElementById('result');
+        const resetButton = document.getElementById('reset');
+        const betAmountInput = document.getElementById('betAmount');
+        const gridSizeInput = document.getElementById('gridSize');
+        const startGameButton = document.getElementById('startGame');
+        const adminPanel = document.getElementById('adminPanel');
+        const oddsInput = document.getElementById('odds');
+        const maxBetInput = document.getElementById('maxBet');
+        const updateSettingsButton = document.getElementById('updateSettings');
+        const loginButton = document.getElementById('loginButton');
+        const createAccountButton = document.getElementById('createAccount');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const loginContainer = document.getElementById('loginContainer');
+        const createAccountContainer = document.getElementById('createAccountContainer');
+        const newUsernameInput = document.getElementById('newUsername');
+        const newPasswordInput = document.getElementById('newPassword');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const gameContainer = document.getElementById('gameContainer');
+        const walletBalanceElement = document.getElementById('walletBalance');
+        const addFundsInput = document.getElementById('addFunds');
+        const addFundsButton = document.getElementById('addFundsButton');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const spinButton = document.getElementById('spinButton');
+        const slot1 = document.getElementById('slot1');
+        const slot2 = document.getElementById('slot2');
+        const slot3 = document.getElementById('slot3');
+        const slotResultElement = document.getElementById('slotResult');
+
+        let gridSize = 3;
+        let mineCount = 2;
+        let mines = [];
+        let revealedCount = 0;
+        let betAmount = 0;
+        let oddsMultiplier = 2; // Default odds
+        let maxBet = 100; // Default max bet
+        let loggedInUser = null;
+        let walletBalance = 100; // Initial wallet balance
+        const users = {}; // Object to store user credentials
+
+        function updateWalletDisplay() {
+            walletBalanceElement.innerText = walletBalance.toFixed(2);
+        }
+
+        function setupGame() {
+            if (loggedInUser === null) {
+                alert('You must be logged in to play.');
+                return;
+            }
+
+            // Reset game state
+            mines = [];
+            revealedCount = 0;
+            resultElement.innerHTML = '';
+            gridElement.innerHTML = '';
+
+            // Get grid size and bet amount
+            gridSize = parseInt(gridSizeInput.value) || 3;
+            betAmount = parseFloat(betAmountInput.value) || 0;
+
+            if (betAmount > walletBalance) {
+                alert(`You do not have enough funds in your wallet. Current Balance: $${walletBalance.toFixed(2)}`);
+                return;
+            }
+
+            if (betAmount > maxBet) {
+                alert(`Bet amount exceeds the maximum limit of $${maxBet}.`);
+                return;
+            }
+
+            // Deduct bet amount from wallet
+            walletBalance -= betAmount;
+            updateWalletDisplay();
+
+            // Place mines
+            while (mines.length < mineCount) {
+                const minePosition = Math.floor(Math.random() * (gridSize * gridSize));
+                if (!mines.includes(minePosition)) {
+                    mines.push(minePosition);
+                }
+            }
+
+            // Create grid
+            gridElement.style.gridTemplateColumns = `repeat(${gridSize}, 60px)`;
+            gridElement.style.gridTemplateRows = `repeat(${gridSize}, 60px)`;
+            for (let i = 0; i < gridSize * gridSize; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.index = i;
+                cell.onclick = () => revealCell(cell, i);
+                gridElement.appendChild(cell);
+            }
+        }
+
+        function revealCell(cell, index) {
+            if (cell.classList.contains('revealed')) return;
+
+            cell.classList.add('revealed');
+            revealedCount++;
+
+            if (mines.includes(index)) {
+                cell.classList.add('mine');
+                resultElement.innerHTML = `Game Over! You hit a mine! You lost your bet of $${betAmount}. 😢`;
+                revealAllMines();
+            } else {
+                cell.innerHTML = '✅';
+                if (revealedCount === (gridSize * gridSize - mineCount)) {
+                    const winnings = betAmount * oddsMultiplier; // Use the updated odds
+                    walletBalance += winnings; // Add winnings to wallet
+                    updateWalletDisplay();
+                    resultElement.innerHTML = `Congratulations! You cleared the field! You win $${winnings.toFixed(2)}! 🎉`;
+                }
+            }
+        }
+
+        function revealAllMines() {
+            mines.forEach(mineIndex => {
+                const mineCell = gridElement.children[mineIndex];
+                mineCell.classList.add('mine');
+            });
+        }
+
+        startGameButton.onclick = setupGame;
+
+        resetButton.onclick = setupGame;
+
+        // Admin panel functionality
+        updateSettingsButton.onclick = () => {
+            const odds = parseFloat(oddsInput.value);
+            const maxBetAmount = parseFloat(maxBetInput.value);
+            if (odds && odds > 0) oddsMultiplier = odds;
+            if (maxBetAmount && maxBetAmount > 0) maxBet = maxBetAmount;
+            alert(`Settings updated: Odds Multiplier = ${oddsMultiplier}, Max Bet = $${maxBet}`);
+        };
+
+        // Login function
+        loginButton.onclick = () => {
+            const username = usernameInput.value;
+            const password = passwordInput.value;
+            if (users[username] && users[username] === password) {
+                loggedInUser = username;
+                alert(`Welcome, ${username}!`);
+                adminPanel.style.display = "block"; // Show admin panel if logged in
+                loginContainer.style.display = "none"; // Hide login panel
+                gameContainer.style.display = "block"; // Show game controls
+                optionsContainer.style.display = "flex"; // Show options
+                updateWalletDisplay(); // Initialize wallet display
+            } else {
+                alert('Invalid credentials. Please try again.');
+            }
+        };
+
+        // Switch to account creation
+        document.getElementById("switchToCreateAccount").onclick = () => {
+            loginContainer.style.display = "none"; // Hide login panel
+            createAccountContainer.style.display = "flex"; // Show create account panel
+        };
+
+        // Back to login
+        document.getElementById("switchToLogin").onclick = () => {
+            createAccountContainer.style.display = "none"; // Hide create account panel
+            loginContainer.style.display = "flex"; // Show login panel
+        };
+
+        // Create account function
+        createAccount.onclick = () => {
+            const newUsername = newUsernameInput.value;
+            const newPassword = newPasswordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            if (newUsername && newPassword && confirmPassword) {
+                if (newPassword === confirmPassword) {
+                    users[newUsername] = newPassword;
+                    alert(`Account created successfully! You can now log in.`);
+                    createAccountContainer.style.display = "none"; // Hide create account panel
+                    loginContainer.style.display = "flex"; // Show login panel
+                } else {
+                    alert('Passwords do not match. Please try again.');
+                }
+            }
+        };
+
+        // Add funds to wallet
+        addFundsButton.onclick = () => {
+            const addAmount = parseFloat(addFundsInput.value);
+            if (addAmount && addAmount > 0) {
+                walletBalance += addAmount;
+                updateWalletDisplay();
+                addFundsInput.value = ''; // Clear input
+            } else {
+                alert('Please enter a valid amount to add.');
+            }
+        };
+
+        // Slot machine functionality
+        spinButton.onclick = () => {
+            const symbols = ['🍒', '🍋', '🍊', '🍇', '🍉', '⭐', '💰'];
+            const slotResults = [
+                symbols[Math.floor(Math.random() * symbols.length)],
+                symbols[Math.floor(Math.random() * symbols.length)],
+                symbols[Math.floor(Math.random() * symbols.length)]
+            ];
+
+            // Update slot machine display
+            slot1.innerText = slotResults[0];
+            slot2.innerText = slotResults[1];
+            slot3.innerText = slotResults[2];
+
+            // Check for win
+            if (slotResults[0] === slotResults[1] && slotResults[1] === slotResults[2]) {
+                const winAmount = betAmount * 3; // Example payout for three matching symbols
+                walletBalance += winAmount;
+                updateWalletDisplay();
+                slotResultElement.innerText = `You won $${winAmount.toFixed(2)}! 🎉`;
+            } else {
+                slotResultElement.innerText = 'Try Again! 😢';
+            }
+        };
+
+        // Logout functionality
+        document.getElementById("logoutButton").onclick = () => {
+            loggedInUser = null;
+            optionsContainer.style.display = "none"; // Hide options
+            gameContainer.style.display = "none"; // Hide game controls
+            loginContainer.style.display = "flex"; // Show login panel
+            alert('You have logged out.');
+        };
+
+        // Options menu functionality
+        document.getElementById("playMines").onclick = () => {
+            optionsContainer.style.display = "none"; // Hide options
+            gameContainer.style.display = "block"; // Show game controls
+        };
+
+        document.getElementById("playSlots").onclick = () => {
+            optionsContainer.style.display = "none"; // Hide options
+            gameContainer.style.display = "block"; // Show game controls
+            document.getElementById("slotContainer").style.display = "block"; // Show slot machine
+        };
+
+        // Initialize game state
+        updateWalletDisplay();
+    </script>
+</body>
+</html>
